@@ -30,6 +30,10 @@ def get_args():
         '--output',
         help='name of %%30 coverage report'
     )
+    parser.add_argument(
+        '--threshold',nargs='?',default='100',
+        help='coverage threshold under which to report'
+    )
     args = parser.parse_args()
     # exit gracefully if no arguments given (or missing either file or output)
     if args.file == None or args.output == None:
@@ -48,12 +52,12 @@ def get_input(args):
     return df
 
 
-def find_subopt(data):
+def find_subopt(data, threshold):
     '''
-    Takes an input dataframe and returns a subset of rows where the value of 'percentage30' is lower than 100. Input must have (minimum) columns as below.
+    Takes an input dataframe & a coverage threshold. Returns a subset of rows where the value of 'percentage30' is lower than the threshold. Input must have (minimum) columns as below.
     '''
     trimColumns = data[["FullPosition", "GeneSymbol;Accession", "readCount", "meanCoverage", "percentage30"]]
-    subopt = trimColumns.loc[trimColumns['percentage30'] < 100]
+    subopt = trimColumns.loc[trimColumns['percentage30'] < float(threshold)]
     return subopt
     
     
@@ -98,7 +102,7 @@ def write_output(args,data):
 def main():
     args = get_args()
     inp = get_input(args)
-    sub = find_subopt(inp)
+    sub = find_subopt(inp,args.threshold)
     if args.verbose:
         out = make_output(sub, True)
     else:
