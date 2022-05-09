@@ -1,8 +1,16 @@
+'''
+Script to generate report of sub-optimally covered genes from Sambamba output
+
+Author: Chris Pyatt
+'''
+
 # import libraries
 import argparse
 import pandas as pd
+import re
+import sys
 
-# define arg parser
+
 def get_args():
     '''
     Parses command line arguments. Returns the arguments as strings.
@@ -16,44 +24,75 @@ def get_args():
     )
     parser.add_argument(
         '--verbose',action='store_true',
-        help='if enabled, reports more info about the gene with sub-optimal coverage'
+        help='if enabled, reports more info about the gene(s) with sub-optimal coverage'
     )
     parser.add_argument(
         '--output',
-        help='name of %30 coverage report'
+        help='name of %%30 coverage report'
     )
     args = parser.parse_args()
-    return args
+    # exit gracefully if no arguments given (or missing either file or output)
+    if args.file == None or args.output == None:
+        parser.print_help()
+        sys.exit(1)
+    else:
+        return args
 
 
-
-# read in input file as dataframe
 def get_input(args):
+    '''
+    Reads input file and makes into pandas dataframe.
+    '''
     with open(args.file) as file:
         df = pd.read_csv(file, sep=r"\s+")
     return df
 
 
-# loop thru input file
-# if percentage30 is not 100, make note of gene
 def find_subopt(data):
+    '''
+    Takes an input dataframe and returns a subset of rows where the value of 'percentage30' is lower than 100. Input must have (minimum) columns as below.
+    '''
     trimColumns = data[["FullPosition", "GeneSymbol;Accession", "readCount", "meanCoverage", "percentage30"]]
     subopt = trimColumns.loc[trimColumns['percentage30'] < 100]
     return subopt
     
     
-def make_verbose_output(data):
-    pass
+def make_output(data, verbose):
+    '''
+    Takes suboptimal coverage dataframe & converts to output list. Output content depends on whether verbose option is enabled.
+    '''
+    geneDf = data[["GeneSymbol;Accession"]].drop_duplicates("GeneSymbol;Accession")
+    uniqueGenes = geneDf["GeneSymbol;Accession"].values.tolist()
+    if verbose:
+        out = []
+        for i in uniqueGenes:
+            gene = i.split(';')[0]
+            out.append(gene)
+            # more readable headers
+            out.append('Exon_Position\tGene_Transcript\tRead_Count\tMean_Coverage\tPercentage_>=30X')
+            # exon output for gene
+            data_string = data.loc[data['GeneSymbol;Accession'] == i].to_string(index=False,header=False)
+            # replaces (multiple) spaces with tabs
+            data_string_tabbed = re.sub(' +', '\t', data_string)
+            out.append(data_string_tabbed)
+            out.append('\n')
+    else:
+        out = []
+        for i in uniqueGenes:
+            gene = i.split(';')[0]
+            out.append(gene)
+    return out
 
 
-# write list of offending genes to file
 def write_output(args,data):
+    '''
+    Writes output to a file. Takes args to get output filename and data = a list of genes (& other info if verbose enabled).
+    '''
     with open(args.output,'w') as outfile:
-        outfile.write("The genes listed below have suboptimal coverage in at least one exon:\n")    
+        outfile.write("The genes listed below have suboptimal coverage in at least one exon:\n\n")    
         for line in data:
             outfile.write(line)
             outfile.write("\n")
-    print(data)
 
 
 def main():
@@ -61,10 +100,9 @@ def main():
     inp = get_input(args)
     sub = find_subopt(inp)
     if args.verbose:
-        pass
+        out = make_output(sub, True)
     else:
-        geneDf = sub[["GeneSymbol;Accession"]].drop_duplicates("GeneSymbol;Accession")
-        out = (geneDf["GeneSymbol;Accession"].values.tolist())
+        out = make_output(sub, False)
     write_output(args,out)    
     
 
