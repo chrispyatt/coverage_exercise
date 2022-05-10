@@ -32,7 +32,7 @@ def get_args():
     )
     parser.add_argument(
         '--threshold',nargs='?',default='100',
-        help='coverage threshold under which to report'
+        help='coverage threshold under which to report. NB. threshold applied at exon level'
     )
     args = parser.parse_args()
     # exit gracefully if no arguments given (or missing either file or output)
@@ -48,6 +48,7 @@ def get_input(args):
     Reads input file and makes into pandas dataframe.
     '''
     with open(args.file) as file:
+        # separator argument negates mix of tabs and spaces
         df = pd.read_csv(file, sep=r"\s+")
     return df
 
@@ -56,7 +57,11 @@ def find_subopt(data, threshold):
     '''
     Takes an input dataframe & a coverage threshold. Returns a subset of rows where the value of 'percentage30' is lower than the threshold. Input must have (minimum) columns as below.
     '''
-    trimColumns = data[["FullPosition", "GeneSymbol;Accession", "readCount", "meanCoverage", "percentage30"]]
+    try:
+        trimColumns = data[["FullPosition", "GeneSymbol;Accession", "readCount", "meanCoverage", "percentage30"]]
+    except:
+        print('Required columns not found - is the input file in the correct format?')
+        sys.exit(1)
     subopt = trimColumns.loc[trimColumns['percentage30'] < float(threshold)]
     return subopt
     
@@ -73,7 +78,7 @@ def make_output(data, verbose):
             gene = i.split(';')[0]
             out.append(gene)
             # more readable headers
-            out.append('Exon_Position\tGene_Transcript\tRead_Count\tMean_Coverage\tPercentage_>=30X')
+            out.append('Exon_Genomic_Position\tGene_Transcript\tRead_Count\tMean_Coverage\tPercentage_>=30X')
             # exon output for gene
             data_string = data.loc[data['GeneSymbol;Accession'] == i].to_string(index=False,header=False)
             # replaces (multiple) spaces with tabs
