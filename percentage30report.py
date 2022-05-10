@@ -47,9 +47,13 @@ def get_input(args):
     '''
     Reads input file and makes into pandas dataframe.
     '''
-    with open(args.file) as file:
-        # separator argument negates mix of tabs and spaces
-        df = pd.read_csv(file, sep=r"\s+")
+    try:
+        with open(args.file) as file:
+            # separator argument negates mix of tabs and spaces
+            df = pd.read_csv(file, sep=r"\s+")
+    except:
+        print('\nError reading input file')
+        sys.exit(1)
     return df
 
 
@@ -60,7 +64,7 @@ def find_subopt(data, threshold):
     try:
         trimColumns = data[["FullPosition", "GeneSymbol;Accession", "readCount", "meanCoverage", "percentage30"]]
     except:
-        print('Required columns not found - is the input file in the correct format?')
+        print('\nRequired columns not found - is the input file in the correct format?')
         sys.exit(1)
     subopt = trimColumns.loc[trimColumns['percentage30'] < float(threshold)]
     return subopt
@@ -97,11 +101,17 @@ def write_output(args,data):
     '''
     Writes output to a file. Takes args to get output filename and data = a list of genes (& other info if verbose enabled).
     '''
-    with open(args.output,'w') as outfile:
-        outfile.write("The genes listed below have suboptimal coverage in at least one exon:\n\n")    
+    try:
+        with open(args.output,'w') as outfile:
+            outfile.write("The genes listed below have suboptimal coverage in at least one exon:\n\n")    
+            for line in data:
+                outfile.write(line)
+                outfile.write("\n")
+    except:
+        print('\nError writing to output file. Printing output to console instead...\n\n\n')
+        print("The genes listed below have suboptimal coverage in at least one exon:\n\n")
         for line in data:
-            outfile.write(line)
-            outfile.write("\n")
+            print(line,'\n')
 
 
 def main():
